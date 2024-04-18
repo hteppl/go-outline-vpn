@@ -14,6 +14,19 @@ type OutlineVPN struct {
 	session *fasthttp.Client
 }
 
+type OutlineKey struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Password  string `json:"password"`
+	Port      int64  `json:"port"`
+	Method    string `json:"method"`
+	AccessURL string `json:"accessUrl"`
+}
+
+type BytesTransferred struct {
+	BytesTransferredByUserId map[string]int64 `json:"bytesTransferredByUserId"`
+}
+
 type ServerInfo struct {
 	Name               string `json:"name"`
 	ServerID           string `json:"serverId"`
@@ -25,6 +38,9 @@ type ServerInfo struct {
 	} `json:"accessKeyDataLimit"`
 	PortForNewAccessKeys  int    `json:"portForNewAccessKeys"`
 	HostnameForAccessKeys string `json:"hostnameForAccessKeys"`
+}
+
+func main() {
 }
 
 func NewOutlineVPN(apiURL, certSha256 string) (*OutlineVPN, error) {
