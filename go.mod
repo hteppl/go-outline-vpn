@@ -1,4 +1,4 @@
-module outline_vpn
+module github.com/hteppl/go-outline-vpn
 
 go 1.22
 
