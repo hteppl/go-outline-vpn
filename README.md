@@ -2,7 +2,7 @@
 
 ![Logo](./assets/logo.png)
 
-[Outline API](https://getoutline.org) handler written in Go
+[Outline VPN](https://getoutline.org) handler via http API, written in Go
 
 ## How to install
 
