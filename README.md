@@ -1,6 +1,6 @@
-# Outline API
+[![](https://img.shields.io/badge/Go-00ADD8?&style=for-the-badge&logo=go&logoColor=white)]() [![](https://img.shields.io/badge/Outline-31B390?&style=for-the-badge&logoColor=white)]() [![](https://img.shields.io/badge/MIT%20License-98C610?&style=for-the-badge&logoColor=white)]()
 
-![Logo](./assets/logo.png)
+![](./assets/logo.png)
 
 [Outline VPN](https://getoutline.org) handler via http API, written in Go
 
