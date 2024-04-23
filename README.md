@@ -6,7 +6,11 @@
 
 ## How to install
 
-`go get -u github.com/hteppl/go-outline-vpn`
+```shell
+go get -u github.com/hteppl/go-outline-vpn
+```
+
+[Get the source code from releases](https://github.com/hteppl/go-outline-vpn/releases)
 
 ## Examples
 
@@ -16,7 +20,7 @@
 
 ## Libraries
 
-[fasthttp](https://github.com/valyala/fasthttp) fast HTTP implementation for Go.
+[fasthttp](https://github.com/valyala/fasthttp) fast HTTP implementation for Go
 
 ## License
 
