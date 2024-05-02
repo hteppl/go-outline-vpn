@@ -2,10 +2,14 @@ package outlinevpn
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/valyala/fasthttp"
+	"net/url"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -29,7 +33,7 @@ type OutlineKey struct {
 // https://www.reddit.com/r/outlinevpn/wiki/index/dynamic_access_keys/
 type OutlineConnectionSource struct {
 	Server     string `json:"server"`
-	ServerPort uint   `json:"server_port"`
+	ServerPort int    `json:"server_port"`
 	Password   string `json:"password"`
 	Method     string `json:"method"`
 }
@@ -81,7 +85,7 @@ func NewOutlineVPN(apiURL string, certSha256 string) (*OutlineVPN, error) {
 }
 
 // NewOutlineConnection creates a new Outline client connection source.
-func NewOutlineConnection(server string, port uint, password string, method string) *OutlineConnectionSource {
+func NewOutlineConnection(server string, port int, password string, method string) *OutlineConnectionSource {
 	return &OutlineConnectionSource{
 		Server:     server,
 		ServerPort: port,
@@ -120,7 +124,7 @@ func (vpn *OutlineVPN) GetKeys() ([]OutlineKey, error) {
 	return keys.AccessKeys, nil
 }
 
-func (vpn *OutlineVPN) GetKey(id string) (OutlineKey, error) {
+func (vpn *OutlineVPN) GetKey(id string) (*OutlineKey, error) {
 	request := fasthttp.AcquireRequest()
 	response := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(request)
@@ -132,20 +136,20 @@ func (vpn *OutlineVPN) GetKey(id string) (OutlineKey, error) {
 	request.SetRequestURI(fmt.Sprintf("%s/access-keys/%s", vpn.apiURL, id))
 	// Executing request
 	if err := vpn.session.DoTimeout(request, response, defaultTimeout); err != nil {
-		return result, err
+		return &result, err
 	}
 
 	// If key is added, status code always must be 200
 	if response.StatusCode() != fasthttp.StatusOK {
-		return result, errors.New("unable to retrieve keys")
+		return &result, errors.New("unable to retrieve keys")
 	}
 
 	// Trying unmarshal response body as `OutlineKey`
 	if err := json.Unmarshal(response.Body(), &result); err != nil {
-		return result, err
+		return &result, err
 	}
 
-	return result, nil
+	return &result, nil
 }
 
 func (vpn *OutlineVPN) AddKey(key *OutlineKey) (*OutlineKey, error) {
@@ -249,7 +253,7 @@ func (vpn *OutlineVPN) RenameKeyByID(id string, name string) error {
 	return nil
 }
 
-func (vpn *OutlineVPN) GetTransferMetrics() (BytesTransferred, error) {
+func (vpn *OutlineVPN) GetTransferMetrics() (*BytesTransferred, error) {
 	request := fasthttp.AcquireRequest()
 	response := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(request)
@@ -261,23 +265,23 @@ func (vpn *OutlineVPN) GetTransferMetrics() (BytesTransferred, error) {
 	request.SetRequestURI(fmt.Sprintf("%s/metrics/transfer", vpn.apiURL))
 	// Executing request
 	if err := vpn.session.DoTimeout(request, response, defaultTimeout); err != nil {
-		return result, err
+		return &result, err
 	}
 
 	// If data is gathered, status code always must be lower than 400
 	if response.StatusCode() >= fasthttp.StatusBadRequest {
-		return result, errors.New("unable to get metrics for keys")
+		return &result, errors.New("unable to get metrics for keys")
 	}
 
 	// Trying to unmarshal response body as `BytesTransferred`
 	if err := json.Unmarshal(response.Body(), &result); err != nil {
-		return result, err
+		return &result, err
 	}
 
-	return result, nil
+	return &result, nil
 }
 
-func (vpn *OutlineVPN) GetServerInfo() (ServerInfo, error) {
+func (vpn *OutlineVPN) GetServerInfo() (*ServerInfo, error) {
 	request := fasthttp.AcquireRequest()
 	response := fasthttp.AcquireResponse()
 	defer fasthttp.ReleaseRequest(request)
@@ -289,18 +293,53 @@ func (vpn *OutlineVPN) GetServerInfo() (ServerInfo, error) {
 	request.SetRequestURI(fmt.Sprintf("%s/server", vpn.apiURL))
 	// Executing request
 	if err := vpn.session.DoTimeout(request, response, defaultTimeout); err != nil {
-		return result, err
+		return &result, err
 	}
 
 	// If data is gathered, status code always must be lower than 400
 	if response.StatusCode() >= fasthttp.StatusBadRequest {
-		return result, errors.New("unable to get metrics for keys")
+		return &result, errors.New("unable to get metrics for keys")
 	}
 
 	// Trying to unmarshal response body as `ServerInfo`
 	if err := json.Unmarshal(response.Body(), &result); err != nil {
-		return result, err
+		return &result, err
 	}
 
-	return result, nil
+	return &result, nil
+}
+
+func (key *OutlineKey) AsSource() (*OutlineConnectionSource, error) {
+	if key.AccessURL == "" {
+		return nil, errors.New("unable to retrieve key's access url")
+	}
+
+	// Parse the access url
+	u, err := url.Parse(key.AccessURL)
+	if err != nil {
+		return nil, err
+	}
+
+	// Decode user info
+	userInfo := strings.TrimPrefix(u.User.String(), ":")
+	decoded, err := base64.StdEncoding.DecodeString(userInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	// Define the host
+	host := u.Hostname()
+	// Trying to convert the port into an integer
+	port, err := strconv.Atoi(u.Port())
+	if err != nil {
+		return nil, err
+	}
+
+	// Split decoded data
+	data := strings.Split(string(decoded), ":")
+	if len(data) != 2 {
+		return nil, errors.New("decoded access url doesn't contains password or method")
+	}
+
+	return NewOutlineConnection(host, port, data[1], data[0]), nil
 }
