@@ -94,6 +94,10 @@ func NewOutlineConnection(server string, port int, password string, method strin
 	}
 }
 
+func NewOutlineKey() *OutlineKey {
+	return &OutlineKey{}
+}
+
 func (vpn *OutlineVPN) GetKeys() ([]OutlineKey, error) {
 	request := fasthttp.AcquireRequest()
 	response := fasthttp.AcquireResponse()
@@ -141,7 +145,7 @@ func (vpn *OutlineVPN) GetKey(id string) (*OutlineKey, error) {
 
 	// If key is added, status code always must be 200
 	if response.StatusCode() != fasthttp.StatusOK {
-		return &result, errors.New("unable to retrieve keys")
+		return &result, errors.New("unable to retrieve key data")
 	}
 
 	// Trying unmarshal response body as `OutlineKey`
@@ -150,6 +154,21 @@ func (vpn *OutlineVPN) GetKey(id string) (*OutlineKey, error) {
 	}
 
 	return &result, nil
+}
+
+func (vpn *OutlineVPN) KeyExists(id string) bool {
+	key, err := vpn.GetKey(id)
+	return err == nil && key.IsInitialized()
+}
+
+func (vpn *OutlineVPN) GetOrCreateKey(id string) (*OutlineKey, error) {
+	if vpn.KeyExists(id) {
+		return vpn.GetKey(id)
+	}
+
+	key := NewOutlineKey()
+	key.ID = id
+	return vpn.AddKey(key)
 }
 
 func (vpn *OutlineVPN) AddKey(key *OutlineKey) (*OutlineKey, error) {
@@ -310,8 +329,8 @@ func (vpn *OutlineVPN) GetServerInfo() (*ServerInfo, error) {
 }
 
 func (key *OutlineKey) AsSource() (*OutlineConnectionSource, error) {
-	if key.AccessURL == "" {
-		return nil, errors.New("unable to retrieve key's access url")
+	if !key.IsInitialized() {
+		return nil, errors.New("unable to retrieve key access url")
 	}
 
 	// Parse the access url
@@ -342,4 +361,8 @@ func (key *OutlineKey) AsSource() (*OutlineConnectionSource, error) {
 	}
 
 	return NewOutlineConnection(host, port, data[1], data[0]), nil
+}
+
+func (key *OutlineKey) IsInitialized() bool {
+	return key.AccessURL != ""
 }
